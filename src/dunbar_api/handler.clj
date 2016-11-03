@@ -4,18 +4,19 @@
             [org.httpkit.server :refer [run-server]]
             [scenic.routes :refer [scenic-handler]]
             [dunbar-api.routes :as r]
+            [dunbar-api.db :as db]
             [ring.util.response :refer [response content-type status]])
   (:gen-class))
 
-(defn handlers []
+(defn handlers [db]
   {:home (constantly (-> (response "hello world") (content-type "text/plain")))
    :create-friend (constantly (-> (response "created") (content-type "text/plain") (status 201)))})
 
 (defn app
   "Takes a configuration map, a store object (i.e. to interact with the database),
      and a clock object (i.e. for timebased operations), and returns a ring request handler."
-  []
-  (-> (scenic-handler r/routes (handlers))
+  [db]
+  (-> (scenic-handler r/routes (handlers db))
       ;wrap-json-response
       ;(m/wrap-exceptions c/error-handler)
       (wrap-defaults api-defaults)
@@ -24,4 +25,6 @@
       ))
 
 (defn -main [& args]
-  (run-server (app) {:port 8080 :host "0.0.0.0"}))
+  (let [db (db/create-db)]
+    (db/migrate-db db nil)
+    (run-server (app db) {:port 8080 :host "0.0.0.0"})))

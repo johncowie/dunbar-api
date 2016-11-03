@@ -5,7 +5,7 @@
             [dunbar-api.routes :as r]
             ))
 
-(def app (h/app))
+(def app (h/app nil))
 
 (facts "handler returns something"
        (-> (mock/request :get "/") app :body) => "hello world")
