@@ -4,12 +4,12 @@
             [org.httpkit.server :refer [run-server]]
             [scenic.routes :refer [scenic-handler]]
             [dunbar-api.routes :as r]
-            [ring.util.response :refer [response content-type]])
+            [ring.util.response :refer [response content-type status]])
   (:gen-class))
 
 (defn handlers []
-  {:home (constantly (-> (response "hello world") (content-type "text/plain")))}
-  )
+  {:home (constantly (-> (response "hello world") (content-type "text/plain")))
+   :create-friend (constantly (-> (response "created") (content-type "text/plain") (status 201)))})
 
 (defn app
   "Takes a configuration map, a store object (i.e. to interact with the database),

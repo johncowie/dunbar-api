@@ -1,1 +1,2 @@
-GET  /  home
+GET  /          home
+POST /friends   create-friend
