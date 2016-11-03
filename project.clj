@@ -17,4 +17,5 @@
   {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
                         [ring/ring-mock "0.3.0"]
                         [midje "1.8.3"]]
-         :plugins      [[lein-midje "3.2"]]}})
+         :plugins      [[lein-midje "3.2"]]}}
+  :main dunbar-api.handler)

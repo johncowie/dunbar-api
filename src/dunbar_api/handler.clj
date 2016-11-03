@@ -4,10 +4,11 @@
             [org.httpkit.server :refer [run-server]]
             [scenic.routes :refer [scenic-handler]]
             [dunbar-api.routes :as r]
-            [ring.util.response :refer [response]]))
+            [ring.util.response :refer [response content-type]])
+  (:gen-class))
 
 (defn handlers []
-  {:home (constantly (response "hello world"))}
+  {:home (constantly (-> (response "hello world") (content-type "text/plain")))}
   )
 
 (defn app
@@ -21,3 +22,6 @@
       ;(wrap-json-body {:keywords? true})
       ;(m/wrap-allow-access-all)
       ))
+
+(defn -main [& args]
+  (run-server (app) {:port 8080 :host "0.0.0.0"}))
