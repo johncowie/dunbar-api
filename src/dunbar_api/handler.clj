@@ -5,6 +5,7 @@
             [scenic.routes :refer [scenic-handler]]
             [dunbar-api.routes :as r]
             [dunbar-api.db :as db]
+            [dunbar-api.validation :as v]
             [ring.util.response :refer [response content-type status]]
             [clojure.string :as str])
   (:gen-class))
@@ -21,11 +22,14 @@
 
 (defn create-friend [db]
   (fn [req]
-    (let [data (:body req)
-          updated (-> data add-user gen-id)]
-      (db/create-friend db updated)
-      (-> (response {:status "created" :url (r/path-for :view-friend :id (:id updated))})
-          (status 201)))))
+    (let [val-result (v/validate-friend (:body req))]
+      (if (v/success? val-result)
+        (let [updated (-> (:value val-result) add-user gen-id)]
+          (db/create-friend db updated)
+          (-> (response {:status "created" :url (r/path-for :view-friend :id (:id updated))})
+              (status 201)))
+        (-> (response {:status "error" :errors (:value val-result)})
+            (status 400))))))
 
 (defn view-friend [db]
   (fn [req]
