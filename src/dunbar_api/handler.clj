@@ -21,20 +21,36 @@
 
 (defn create-friend [db]
   (fn [req]
-    (let [data (:body req)]
-      (db/create-friend db (-> data add-user gen-id))
-      (-> (response {:status "created"}) (status 201))
-      )))
+    (let [data (:body req)
+          updated (-> data add-user gen-id)]
+      (db/create-friend db updated)
+      (-> (response {:status "created" :url (r/path-for :view-friend :id (:id updated))})
+          (status 201)))))
+
+(defn view-friend [db]
+  (fn [req]
+    (let [id (-> req :params :id)
+          friend (db/retrieve-friend db id)]
+      (when friend
+        (-> friend
+            (select-keys [:firstName :lastName])
+            response
+            (status 200))))))
+
+(defn not-found [req]
+  (-> (response {:status "resource not found"})
+      (status 404)))
 
 (defn handlers [db]
   {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
-   :create-friend (create-friend db)})
+   :create-friend (create-friend db)
+   :view-friend   (view-friend db)})
 
 (defn app
   "Takes a configuration map, a store object (i.e. to interact with the database),
      and a clock object (i.e. for timebased operations), and returns a ring request handler."
   [db]
-  (-> (scenic-handler r/routes (handlers db))
+  (-> (scenic-handler r/routes (handlers db) not-found)
       wrap-json-response
       ;(m/wrap-exceptions c/error-handler)
       (wrap-defaults api-defaults)

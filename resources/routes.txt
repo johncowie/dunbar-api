@@ -1,2 +1,3 @@
-GET  /          home
-POST /friends   create-friend
+GET  /              home
+POST /friends       create-friend
+GET  /friends/:id   view-friend

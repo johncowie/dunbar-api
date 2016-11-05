@@ -20,16 +20,23 @@
              req (-> (mock/request :post (r/path-for :create-friend))
                      (mock/body body)
                      (mock/content-type "application/json; charset=utf-8"))]
-         (let [resp (-> req app)]
+         (let [resp (-> req app)
+               resp-json (json/parse-string (:body resp) keyword)]
            (:status resp) => 201
-           (future-fact "response has url to resource")
-           (future-fact "resource url returns data")
-           (db/retrieve-friend db "david-bowie") => {:firstName "David"
-                                                     :lastName  "Bowie"
-                                                     :user      "john"
-                                                     :id        "david-bowie"}
-           )
-         )
-       )
+           (fact "response has url to resource"
+                 resp-json => (contains {:status "created"
+                                         :url    anything}))
+           (fact "resource url returns data"
+                 (let [req (mock/request :get (or (:url resp-json) "blah"))
+                       resp (-> req app)
+                       resp-json (when (:body resp) (json/parse-string (:body resp) keyword))]
+                   (:status resp) => 200
+                   resp-json => {:firstName "David"
+                                 :lastName  "Bowie"})))))
+
+(facts "returns 404 for friend that doesn't exist"
+       (let [req (mock/request :get (r/path-for :view-friend :id "blah"))
+             resp (-> req app)]
+         (:status resp) => 404))
 
 (db/stop-db db)
