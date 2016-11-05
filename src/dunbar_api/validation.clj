@@ -10,9 +10,12 @@
 (def first-name-validator (tr/at name-validator :first-name friend/friend->first-name))
 (def last-name-validator (tr/at name-validator :last-name friend/friend->last-name))
 
+(def unknown-keys-validator (v/valid-keys friend/valid-keys))
+
 (def friend-validator (d/group
                         first-name-validator
-                        last-name-validator))
+                        last-name-validator
+                        unknown-keys-validator))
 
 (def friend-translations {:first-name {:is-string        "First name must be a string"
                                        :length-less-than "First name must be less than ~~limit~~ characters"
@@ -21,7 +24,8 @@
                           :last-name  {:is-string        "Last name must be a string"
                                        :length-less-than "Last name must be less than ~~limit~~ characters"
                                        :not-blank        "Last name must not be blank"
-                                       :not-nil          "Last name cannot be nil"}})
+                                       :not-nil          "Last name cannot be nil"}
+                          :valid-keys "Data contains invalid keys"})
 
 (defn validate-friend [friend]
   (-> friend

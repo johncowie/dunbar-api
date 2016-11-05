@@ -36,18 +36,29 @@
   {:lastName (string-of 50)} nil
   {:lastName (string-of 51)} [:last-name :length-less-than])
 
-(future-facts "about unknown key validation"
-
-              )
+(tabular
+  (fact "about unknown key validation"
+        (let [result (-> ?data (d/validate v/unknown-keys-validator))]
+          (-> result :value first :type) => ?error))
+  ?data ?error
+  {} nil
+  {:firstName "" :lastName ""} nil
+  {:firstName "" :bob ""} [:valid-keys]
+  )
 
 (facts "about whole friend validation"
-       (-> {} (d/validate v/friend-validator)) => {:result :error
-                                                   :value  [{:type        [:first-name :mandatory]
-                                                             :value       nil
-                                                             :constraints {}}
-                                                            {:type        [:last-name :mandatory]
-                                                             :value       nil
-                                                             :constraints {}}]}
+       (-> {:unknown ""} (d/validate v/friend-validator))
+       => {:result :error
+           :value  [{:type        [:first-name :mandatory]
+                     :value       nil
+                     :constraints {}}
+                    {:type        [:last-name :mandatory]
+                     :value       nil
+                     :constraints {}}
+                    {:type        [:valid-keys]
+                     :value       {:unknown ""}
+                     :constraints {:valid-keys [:firstName :lastName]}}]}
+
        (-> {:firstName "Bob" :lastName "the Builder"}
            (d/validate v/friend-validator)) => {:result :success
                                                 :value  {:firstName "Bob" :lastName "the Builder"}})

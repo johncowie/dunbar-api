@@ -45,7 +45,8 @@
          (:status resp) => 400
          resp-json => {:status "error"
                        :errors {:first-name {:not-blank "First name must not be blank"}
-                                :last-name {:not-blank "Last name must not be blank"}}}))
+                                :last-name {:not-blank "Last name must not be blank"}
+                                :valid-keys "Data contains invalid keys"}}))
 
 (facts "returns 404 for friend that doesn't exist"
        (let [req (mock/request :get (r/path-for :view-friend :id "blah"))
