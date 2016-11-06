@@ -18,12 +18,15 @@
                  [com.stuartsierra/component "0.3.1"]
                  [org.clojure/tools.logging "0.3.1"]
                  [log4j/log4j "1.2.17" :exclusions [javax.mail/mail javax.jms/jms com.sun.jmdk/jmxtools com.sun.jmx/jmxri]]
-                 [org.slf4j/slf4j-log4j12 "1.7.21"]]
+                 [org.slf4j/slf4j-log4j12 "1.7.21"]
+                 [environ "1.1.0"]]
   :plugins [[lein-ring "0.9.7"]]
   :ring {:handler dunbar-api.handler/app}
   :profiles
   {:dev {:dependencies [[javax.servlet/servlet-api "2.5"]
                         [ring/ring-mock "0.3.0"]
                         [midje "1.8.3"]]
-         :plugins      [[lein-midje "3.2"]]}}
+         :plugins      [[lein-midje "3.2"]
+                        [lein-environ "1.1.0"]]
+         :env {:postgres-uri "postgresql://localhost:5432/dunbar"}}}
   :main dunbar-api.handler)

@@ -6,6 +6,7 @@
             [dunbar-api.routes :as r]
             [dunbar-api.db :as db]
             [dunbar-api.validation :as v]
+            [dunbar-api.config :as config]
             [ring.util.response :refer [response content-type status]]
             [clojure.string :as str])
   (:gen-class))
@@ -63,6 +64,7 @@
       ))
 
 (defn -main [& args]
-  (let [db (db/create-db)]
+  (let [config (config/load-config)
+        db (db/create-db config)]
     (db/migrate-db db nil)
     (run-server (app db) {:port 8080 :host "0.0.0.0"})))

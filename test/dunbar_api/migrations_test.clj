@@ -2,7 +2,8 @@
   (:require [midje.sweet :refer :all]
             [dunbar-api.db :as db]
             [clojure.java.jdbc :as jdbc]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [dunbar-api.test-utils :as u]))
 
 (defn adhoc-query-succeeds? [connection-pool query-str]
   (try
@@ -23,20 +24,21 @@
     (when (adhoc-query-succeeds? connection-pool query)
       table-name)))
 
-(facts "migration 001"
-       (let [db (db/create-db)
-             pool (:pool db)]
-         (db/migrate-db db "001-initialise-tables")
-         (facts "creates friends table"
-                (table-exists? pool "friends") => truthy
-                (column-exists? pool "friends.user") => truthy
-                (column-exists? pool "friends.id") => truthy
-                (column-exists? pool "friends.first_name") => truthy
-                (column-exists? pool "friends.last_name") => truthy
-                (db/rollback-db db nil)
-                (table-exists? pool "friends") => falsey
-                (future-fact "can call rollback with a specific ID - non-inclusive")
-                (future-fact "throws exception for non-existant migration id")
-                ;(m/run-migrations db)
-                (db/stop-db db)
-                )))
+(u/with-db
+  (fn [db]
+    (facts "migration 001"
+           (let [pool (:pool db)]
+             (db/migrate-db db "001-initialise-tables")
+             (facts "creates friends table"
+                    (table-exists? pool "friends") => truthy
+                    (column-exists? pool "friends.user") => truthy
+                    (column-exists? pool "friends.id") => truthy
+                    (column-exists? pool "friends.first_name") => truthy
+                    (column-exists? pool "friends.last_name") => truthy
+                    (db/rollback-db db nil)
+                    (table-exists? pool "friends") => falsey
+                    (future-fact "can call rollback with a specific ID - non-inclusive")
+                    (future-fact "throws exception for non-existant migration id")
+                    ;(m/run-migrations db)
+                    (db/stop-db db)
+                    )))))

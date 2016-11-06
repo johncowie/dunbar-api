@@ -3,7 +3,8 @@
             [clojure.tools.logging :as log]
             [clojure.java.jdbc :as jdbc]
             [yesql.core :refer [defqueries]]
-            [dunbar-api.migrations :as m])
+            [dunbar-api.migrations :as m]
+            [dunbar-api.config :as config])
   (:import (com.zaxxer.hikari HikariDataSource)))
 
 (defqueries "queries.sql")
@@ -15,9 +16,9 @@
 (defn hikari-pool [config]
   (let [ds (doto (HikariDataSource.)
              (.setDriverClassName "org.postgresql.Driver")
-             (.setJdbcUrl (str "jdbc:" "postgresql://localhost:5432/dunbar" #_(config/postgres-uri config)))
-             ;(.setUsername "username" #_(config/postgres-user config))
-             ;(.setPassword "password" #_(config/postgres-password config))
+             (.setJdbcUrl (str "jdbc:" (config/postgres-uri config)))
+             (.setUsername (config/postgres-user config))
+             (.setPassword (config/postgres-password config))
              )]
     ;(when-let [pool-size 10 (config/postgres-pool-size config)]
     ;  (.setMaximumPoolSize ds pool-size))
@@ -82,10 +83,10 @@
   (retrieve-friend [this friend-id])
   (delete-all [this]))
 
-(defrecord PostgresDB []
+(defrecord PostgresDB [config]
   component/Lifecycle
   (start [this]
-    (-start this {} #_config))
+    (-start this config))
   (stop [this]
     (-stop this))
   MigrateableDB
@@ -103,8 +104,8 @@
   (delete-all [this]
     (with-pool this -delete-all)))
 
-(defn create-db []
-  (component/start (PostgresDB.)))
+(defn create-db [config]
+  (component/start (PostgresDB. config)))
 
 (defn stop-db [db]
   (component/stop db))
