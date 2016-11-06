@@ -12,3 +12,6 @@
   FROM friends
   WHERE
     id = :id;
+
+-- name: sql-delete-all-friends!
+  DELETE FROM friends;

@@ -38,5 +38,5 @@
                 (future-fact "can call rollback with a specific ID - non-inclusive")
                 (future-fact "throws exception for non-existant migration id")
                 ;(m/run-migrations db)
-                ;(.stop db)
+                (db/stop-db db)
                 )))

@@ -74,9 +74,13 @@
         first
         translate-friend)))
 
+(defn -delete-all [conn]
+  (sql-delete-all-friends! {} {:connection conn}))
+
 (defprotocol FriendDB
   (create-friend [this friend])
-  (retrieve-friend [this friend-id]))
+  (retrieve-friend [this friend-id])
+  (delete-all [this]))
 
 (defrecord PostgresDB []
   component/Lifecycle
@@ -95,7 +99,9 @@
   (create-friend [this friend]
     (with-pool this (-create-friend friend)))
   (retrieve-friend [this friend-id]
-    (with-pool this (-retrieve-friend friend-id))))
+    (with-pool this (-retrieve-friend friend-id)))
+  (delete-all [this]
+    (with-pool this -delete-all)))
 
 (defn create-db []
   (component/start (PostgresDB.)))
