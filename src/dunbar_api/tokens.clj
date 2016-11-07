@@ -2,7 +2,8 @@
   (:require [dunbar-api.db :as db]
             [dunbar-api.clock :as clock]
             [dunbar-api.model.login :as login]
-            [clj-time.core :as t])
+            [clj-time.core :as t]
+            [dunbar-api.config :as config])
   (:import (java.util UUID)))
 
 (defprotocol TokenGenerator
@@ -26,8 +27,8 @@
 (defn create-stub-token-generator [token-list]
   (ListTokenGenerator. (atom token-list)))
 
-(defn add-token [login token now-dt]
-  (let [expiry (t/plus now-dt (t/days 1))]                  ;; TODO configure duration
+(defn add-token [login token now-dt config]
+  (let [expiry (t/plus now-dt (t/seconds (config/token-expiry config)))]                  ;; TODO configure duration
     (-> login
         (assoc :token token)
         (assoc :expiry expiry))))
@@ -37,17 +38,17 @@
         now-dt (clock/now-dt clock)]
     (t/after? now-dt expiry)))
 
-(defn new-token [username db clock token-generator]
+(defn new-token [username db clock token-generator config]
   (let [token (generate-token token-generator)
         now-dt (clock/now-dt clock)
-        token-data (-> {:user username} (add-token token now-dt))]
+        token-data (-> {:user username} (add-token token now-dt config))]
     (db/create-user-token db token-data)
     token))
 
-(defn get-token-for-user [username db clock token-generator]
+(defn get-token-for-user [username db clock token-generator config]
   (if-let [retrieved-token (db/retrieve-user-token db username)]
     (if (expired? retrieved-token clock)
       (do (db/delete-user-token db username)
-          (new-token username db clock token-generator))
+          (new-token username db clock token-generator config))
       (:token retrieved-token))
-    (new-token username db clock token-generator)))
+    (new-token username db clock token-generator config)))

@@ -60,7 +60,7 @@
           val-data (:value val-result)]
       (if (v/success? val-result)
         (let [user (l/view-single val-data login/login->username)
-              token (token/get-token-for-user user db clock token-generator)]
+              token (token/get-token-for-user user db clock token-generator config)]
           (response {:status "success" :token token}))
         (-> (response {:status "error" :errors val-data})
             (status 400))))))
