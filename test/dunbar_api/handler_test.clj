@@ -31,10 +31,11 @@
                      (:status resp) => 200
                      resp-json => friend))))))
 
-(let [clock (clock/create-adjustable-clock (t/date-time 2016 1 1 0 0 0))]
+(let [clock (clock/create-adjustable-clock (t/date-time 2016 1 1 0 0 0))
+      token-gen (token/create-stub-token-generator ["t1" "t2" "t3"])]
   (u/with-app
     {:clock           clock
-     :token-generator (token/create-stub-token-generator ["t1" "t2" "t3"])}
+     :token-generator token-gen}
     (fn [app]
       (fact "can login user and retrieve token"
             (let [login-details {:username "john" :password "password"}
@@ -42,8 +43,7 @@
                   resp-json (u/json-body resp)]
               (:status resp) => 200
               resp-json => (contains {:status "success"
-                                      :token  "t1"})
-              ))
+                                      :token  "t1"})))
       (fact "if password is incorrect, returns error response"
             (let [login-details {:username "john" :password "doh"}
                   resp (-> (u/json-post-req (r/path-for :login) login-details) app)
@@ -55,11 +55,28 @@
                   resp (-> (u/json-post-req (r/path-for :login) login-details) app)
                   resp-json (u/json-body resp)]
               (:status resp) => 400
-              resp-json => (contains {:status "error"})))
+              resp-json => (contains {:status "error"}))))))
 
-      )
+(let [token-gen (token/create-stub-token-generator ["t1" "t2"])]
+  (u/with-db
+    (fn [db]
+      (facts "tokens are persisted between app life-cycles, but expired after a certain amount of time"
+             (u/with-app
+               {:db              db
+                :token-generator token-gen}
+               (fn [app]
+                 (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
+                     app u/json-body) => {:status "success" :token "t1"}))
+             (u/with-app
+               {:db              db
+                :token-generator token-gen}
+               (fn [app]
+                 (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
+                     app u/json-body) => {:status "success" :token "t1"}))
+             (future-fact "after some time has elapsed, a new token is returned"
 
-    ))
+                     )
+             ))))
 
 (u/with-app
   (fn [app]

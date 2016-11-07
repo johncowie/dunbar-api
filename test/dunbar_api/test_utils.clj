@@ -21,10 +21,13 @@
          clock (or (:clock component-overrides) (clock/create-joda-clock))
          token-generator (or (:token-generator component-overrides) (token/create-uuid-token-generator))
          app (h/app config db clock token-generator)]
-     (db/migrate-db db nil)
-     (db/delete-all db)
+     ;; FIXME if db is provided, don't manage lifecycle
+     (when-not (:db component-overrides)
+       (db/migrate-db db nil)
+       (db/delete-all db))
      (f app)
-     (db/stop-db db)))
+     (when-not (:db component-overrides)
+       (db/stop-db db))))
   ([f]
     (with-app {} f)))
 

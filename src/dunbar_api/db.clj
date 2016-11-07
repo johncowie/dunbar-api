@@ -19,8 +19,8 @@
   (retrieve-friend [this friend-id])
   (delete-all [this])
   (create-user-token [this user-token])
-  (retrieve-user-token [this user-token])
-  (delete-user-token [this user-token])
+  (retrieve-user-token [this user-id])
+  (delete-user-token [this user-id])
   )
 ;
 (defn hikari-pool [config]

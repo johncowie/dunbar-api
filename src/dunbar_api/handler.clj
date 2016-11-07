@@ -9,9 +9,11 @@
             [dunbar-api.tokens :as token]
             [dunbar-api.validation :as v]
             [dunbar-api.config :as config]
+            [dunbar-api.model.login :as login]
             [ring.util.response :refer [response content-type status]]
             [clojure.string :as str]
-            [dunbar-api.utils.string :as ustr])
+            [dunbar-api.utils.string :as ustr]
+            [traversy.lens :as l])
   (:gen-class))
 
 
@@ -54,13 +56,13 @@
 
 (defn login [config db clock token-generator]
   (fn [req]
-    (let [val-result (-> req :body (v/validate-login (user-exists-fn config) (password-check-fn config)))]
+    (let [val-result (-> req :body (v/validate-login (user-exists-fn config) (password-check-fn config)))
+          val-data (:value val-result)]
       (if (v/success? val-result)
-        (let [data (-> (:value val-result))]
-          (-> {:status "success"
-               :token  (token/generate-token token-generator)}
-              response))
-        (-> (response {:status "error" :errors (:value val-result)})
+        (let [user (l/view-single val-data login/login->username)
+              token (token/get-token-for-user user db clock token-generator)]
+          (response {:status "success" :token token}))
+        (-> (response {:status "error" :errors val-data})
             (status 400))))))
 
 (defn not-found [req]
