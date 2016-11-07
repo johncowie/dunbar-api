@@ -47,12 +47,12 @@
 
 (defn user-exists-fn [config]
   (fn [user]
-    (= user "john")))
+    (= user (config/username config))))
 
 (defn password-check-fn [config]
   (fn [user password]
-    (and (= user "john")
-         (= password "password"))))
+    (and (= user (config/username config))
+         (= password (config/password config)))))
 
 (defn login [config db clock token-generator]
   (fn [req]

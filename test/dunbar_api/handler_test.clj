@@ -35,7 +35,8 @@
       token-gen (token/create-stub-token-generator ["t1" "t2" "t3"])]
   (u/with-app
     {:clock           clock
-     :token-generator token-gen}
+     :token-generator token-gen
+     :config          {:username "john" :password "password"}}
     (fn [app]
       (fact "can login user and retrieve token"
             (let [login-details {:username "john" :password "password"}
@@ -66,20 +67,21 @@
                {:db              db
                 :token-generator token-gen
                 :clock           clock
-                :config          {:token-expiry 2}}
+                :config          {:token-expiry 2 :username "darth" :password "luke"}}
                (fn [app]
-                 (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
+                 (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
                      app u/json-body) => {:status "success" :token "t1"}))
              (u/with-app
                {:db              db
                 :token-generator token-gen
-                :clock           clock}
+                :clock           clock
+                :config          {:token-expiry 2 :username "darth" :password "luke"}}
                (fn [app]
-                 (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
+                 (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
                      app u/json-body) => {:status "success" :token "t1"}
                  (fact "after some time has elapsed, a new token is returned"
                        (clock/adjust clock #(t/plus % (t/seconds 3)))
-                       (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
+                       (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
                            app u/json-body) => {:status "success" :token "t2"})))))))
 
 (u/with-app

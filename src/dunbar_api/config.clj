@@ -19,3 +19,9 @@
 
 (defn postgres-password [config]
   (:postgres-password config))
+
+(defn username [config]
+  (:username config))
+
+(defn password [config]
+  (:password config))

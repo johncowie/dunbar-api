@@ -29,5 +29,7 @@
                         [midje "1.8.3"]]
          :plugins      [[lein-midje "3.2"]
                         [lein-environ "1.1.0"]]
-         :env {:postgres-uri "postgresql://localhost:5432/dunbar"}}}
+         :env {:postgres-uri "postgresql://localhost:5432/dunbar"
+               :username "john"
+               :password "password"}}}
   :main dunbar-api.handler)
