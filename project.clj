@@ -20,7 +20,8 @@
                  [log4j/log4j "1.2.17" :exclusions [javax.mail/mail javax.jms/jms com.sun.jmdk/jmxtools com.sun.jmx/jmxri]]
                  [org.slf4j/slf4j-log4j12 "1.7.21"]
                  [environ "1.1.0"]
-                 [clj-time "0.12.2"]]
+                 [clj-time "0.12.2"]
+                 [crypto-password "0.2.0"]]
   :plugins [[lein-ring "0.9.7"]]
   :ring {:handler dunbar-api.handler/app}
   :profiles

@@ -1,9 +1,9 @@
 (ns dunbar-api.tokens
   (:require [dunbar-api.db :as db]
             [dunbar-api.clock :as clock]
-            [dunbar-api.model.login :as login]
             [clj-time.core :as t]
-            [dunbar-api.config :as config])
+            [dunbar-api.config :as config]
+            [crypto.password.bcrypt :as password])
   (:import (java.util UUID)))
 
 (defprotocol TokenGenerator
@@ -28,9 +28,9 @@
   (ListTokenGenerator. (atom token-list)))
 
 (defn add-token [login token now-dt config]
-  (let [expiry (t/plus now-dt (t/seconds (config/token-expiry config)))]                  ;; TODO configure duration
+  (let [expiry (t/plus now-dt (t/seconds (config/token-expiry config)))]
     (-> login
-        (assoc :token token)
+        (assoc :token token #_(password/encrypt token))     ;; TODO only add encryption when story is played to verify token
         (assoc :expiry expiry))))
 
 (defn expired? [token clock]
