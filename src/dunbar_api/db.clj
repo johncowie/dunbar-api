@@ -3,6 +3,7 @@
             [clojure.tools.logging :as log]
             [clojure.java.jdbc :as jdbc]
             [yesql.core :refer [defqueries]]
+            [clj-time.coerce :as tc]
             [dunbar-api.migrations :as m]
             [dunbar-api.config :as config])
   (:import (com.zaxxer.hikari HikariDataSource)))
@@ -12,6 +13,15 @@
 (defprotocol MigrateableDB
   (migrate-db [this migration-id])
   (rollback-db [this rollback-id]))
+
+(defprotocol FriendDB
+  (create-friend [this friend])
+  (retrieve-friend [this friend-id])
+  (delete-all [this])
+  (create-user-token [this user-token])
+  (retrieve-user-token [this user-token])
+  (delete-user-token [this user-token])
+  )
 ;
 (defn hikari-pool [config]
   (let [ds (doto (HikariDataSource.)
@@ -76,12 +86,29 @@
         translate-friend)))
 
 (defn -delete-all [conn]
-  (sql-delete-all-friends! {} {:connection conn}))
+  (sql-delete-all-friends! {} {:connection conn})
+  (sql-delete-all-tokens! {} {:connection conn}))
 
-(defprotocol FriendDB
-  (create-friend [this friend])
-  (retrieve-friend [this friend-id])
-  (delete-all [this]))
+(defn -insert-user-token [user-token]
+  (let [updated (update user-token :expiry tc/to-sql-time)]
+    (fn [conn]
+      (sql-create-user-token<! updated {:connection conn}))))
+
+(defn -delete-user-token [user-id]
+  (fn [conn]
+    (sql-delete-user-token! {:user user-id} {:connection conn})))
+
+(defn translate-user-token [row]
+  (when row
+    {:user   (:user_id row)
+     :token  (:token row)
+     :expiry (tc/from-sql-time (:expiry row))}))
+
+(defn -retrieve-user-token [user-id]
+  (fn [conn]
+    (-> (sql-retrieve-user-token {:user user-id} {:connection conn})
+        first
+        translate-user-token)))
 
 (defrecord PostgresDB [config]
   component/Lifecycle
@@ -102,7 +129,13 @@
   (retrieve-friend [this friend-id]
     (with-pool this (-retrieve-friend friend-id)))
   (delete-all [this]
-    (with-pool this -delete-all)))
+    (with-pool this -delete-all))
+  (create-user-token [this user-token]
+    (with-pool this (-insert-user-token user-token)))
+  (retrieve-user-token [this user-id]
+    (with-pool this (-retrieve-user-token user-id)))
+  (delete-user-token [this user-id]
+    (with-pool this (-delete-user-token user-id))))
 
 (defn create-db [config]
   (component/start (PostgresDB. config)))
