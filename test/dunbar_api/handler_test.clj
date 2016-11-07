@@ -57,26 +57,29 @@
               (:status resp) => 400
               resp-json => (contains {:status "error"}))))))
 
-(let [token-gen (token/create-stub-token-generator ["t1" "t2"])]
+(let [token-gen (token/create-stub-token-generator ["t1" "t2"])
+      clock (clock/create-adjustable-clock (t/date-time 2016 1 1))]
   (u/with-db
     (fn [db]
       (facts "tokens are persisted between app life-cycles, but expired after a certain amount of time"
              (u/with-app
                {:db              db
-                :token-generator token-gen}
+                :token-generator token-gen
+                :clock           clock}
                (fn [app]
                  (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
                      app u/json-body) => {:status "success" :token "t1"}))
              (u/with-app
                {:db              db
-                :token-generator token-gen}
+                :token-generator token-gen
+                :clock           clock}
                (fn [app]
                  (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
-                     app u/json-body) => {:status "success" :token "t1"}))
-             (future-fact "after some time has elapsed, a new token is returned"
-
-                     )
-             ))))
+                     app u/json-body) => {:status "success" :token "t1"}
+                 (fact "after some time has elapsed, a new token is returned"
+                       (clock/adjust clock #(-> % (t/plus (t/hours 25))))
+                       (-> (u/json-post-req (r/path-for :login) {:username "john" :password "password"})
+                           app u/json-body) => {:status "success" :token "t2"})))))))
 
 (u/with-app
   (fn [app]

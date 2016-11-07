@@ -32,11 +32,22 @@
         (assoc :token token)
         (assoc :expiry expiry))))
 
+(defn expired? [token clock]
+  (let [expiry (:expiry token)
+        now-dt (clock/now-dt clock)]
+    (t/after? now-dt expiry)))
+
+(defn new-token [username db clock token-generator]
+  (let [token (generate-token token-generator)
+        now-dt (clock/now-dt clock)
+        token-data (-> {:user username} (add-token token now-dt))]
+    (db/create-user-token db token-data)
+    token))
+
 (defn get-token-for-user [username db clock token-generator]
   (if-let [retrieved-token (db/retrieve-user-token db username)]
-    (:token retrieved-token)
-    (let [token (generate-token token-generator)
-          now-dt (clock/now-dt clock)
-          token-data (-> {:user username} (add-token token now-dt))]
-      (db/create-user-token db token-data)
-      token)))
+    (if (expired? retrieved-token clock)
+      (do (db/delete-user-token db username)
+          (new-token username db clock token-generator))
+      (:token retrieved-token))
+    (new-token username db clock token-generator)))
