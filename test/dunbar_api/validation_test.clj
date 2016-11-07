@@ -63,7 +63,74 @@
            (d/validate v/friend-validator)) => {:result :success
                                                 :value  {:firstName "Bob" :lastName "the Builder"}})
 
-(facts "about translating errors"
+(facts "about translating friend errors"
        (-> v/friend-validator
            d/possible-errors
            (t/check-translations v/friend-translations)) => {:missing [] :superfluous []})
+
+(tabular
+  (fact "about login username validation"
+        (let [user-exists-fn (fn [user] ?user-exists)
+              result (-> ?data (d/validate (v/username-validator user-exists-fn)))]
+          (if (v/success? result)
+            (fact "success value" (-> result :value) => ?error)
+            (fact "error value" (-> result :value first :type) => ?error))
+          ))
+  ?data ?user-exists ?error
+  {} true [:username :mandatory]
+  {:username nil} true [:username :not-nil]
+  {:username 1} true [:username :is-string]
+  {:username ""} true [:username :not-blank]
+  {:username "  "} true [:username :not-blank]
+  {:username (string-of 26)} true [:username :length-less-than]
+  {:username (string-of 25)} true {:username (string-of 25)}
+  {:username "geoff"} false [:username :user-exists]
+  {:username (str "   " (string-of 25) "  ")} true {:username (string-of 25)}
+  {:username " JoHn  100 "} true {:username "john100"})
+
+(tabular
+  (fact "about login password validation"
+        (let [result (-> ?data (d/validate v/password-validator))]
+          (if (v/success? result)
+            (fact "success value" (-> result :value) => ?error)
+            (fact "error value" (-> result :value first :type) => ?error))))
+  ?data ?error
+  {} [:password :mandatory]
+  {:password nil} [:password :not-nil]
+  {:password 1} [:password :is-string]
+  {:password (string-of 51)} [:password :length-less-than]
+  {:password (string-of 50)} {:password (string-of 50)})
+
+(tabular
+  (fact "about login username and password match validation"
+        (let [password-check-fn (fn [u p] ?matches)
+              result (-> ?data (d/validate (v/password-check-validator password-check-fn)))]
+          (if (v/success? result)
+            (fact "success value" (-> result :value) => ?error)
+            (fact "error value" (-> result :value first :type) => ?error))))
+  ?data ?matches ?error
+  ;; {} true [:password-check :mandatory]                      ;; FIXME this doesn't happen - bug with traversy
+  ;; {:username "blah"} true [:password-check :mandatory]      ;; FIXME this doesn't happen - bug with traversy
+  {:username "u" :password "p"} false [:password-check :correct-password]
+  {:username "u" :password "p"} true {:username "u" :password "p"}
+  )
+
+(tabular
+  (fact "about whole login validation"
+        (let [user-exists-fn (fn [u] true)
+              password-check-fn (fn [u p] ?matches)
+              result (-> ?data (d/validate (v/login-validator user-exists-fn password-check-fn)))]
+          (if (v/success? result)
+            (fact "success value" (-> result :value) => ?error)
+            (fact "error value" (-> result :value first :type) => ?error))))
+  ?data ?matches ?error
+  {:password "p"} true [:username :mandatory]
+  {:username "u"} true [:password :mandatory]
+  {:username "u" :password "p"} false [:password-check :correct-password]
+  {:username "u" :password "p"} true {:username "u" :password "p"}
+  )
+
+(facts "about translating login errors"
+       (-> (v/login-validator nil nil)
+           d/possible-errors
+           (t/check-translations v/login-translations)) => {:missing [] :superfluous []})

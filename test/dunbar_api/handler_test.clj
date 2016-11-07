@@ -16,7 +16,7 @@
            (let [friend {:firstName "David" :lastName "Bowie"}
                  req (u/json-post-req (r/path-for :create-friend) friend)
                  resp (-> req app)
-                 resp-json (json/parse-string (:body resp) keyword)]
+                 resp-json (u/json-body resp)]
              (:status resp) => 201
              (fact "response has url to resource"
                    resp-json => (contains {:status "created"
@@ -24,9 +24,34 @@
              (fact "resource url returns data"
                    (let [req (mock/request :get (or (:url resp-json) "blah"))
                          resp (-> req app)
-                         resp-json (when (:body resp) (json/parse-string (:body resp) keyword))]
+                         resp-json (u/json-body resp)]
                      (:status resp) => 200
                      resp-json => friend))))))
+
+(u/with-app
+  (fn [app]
+    (fact "can login user and retrieve token"
+          (let [login-details {:username "john" :password "password"}
+                resp (-> (u/json-post-req (r/path-for :login) login-details) app)
+                resp-json (u/json-body resp)]
+            (:status resp) => 200
+            resp-json => (contains {:status "success"
+                                    :token  anything})      ;; TODO can swap in token generator?
+            ))
+    (future-fact "if password is incorrect, returns error response"
+          (let [login-details {:username "john" :password "doh"}
+                resp (-> (u/json-post-req (r/path-for :login) login-details) app)
+                resp-json (u/json-body resp)]
+            (:status resp) => 400
+            resp-json => (contains {:status "error"})))
+    (future-fact "if user is incorrect, returns error response"
+          (let [login-details {:username "bob" :password "password"}
+                resp (-> (u/json-post-req (r/path-for :login) login-details) app)
+                resp-json (u/json-body resp)]
+            (:status resp) => 400
+            resp-json => (contains {:status "error"})))
+    )
+  )
 
 (u/with-app
   (fn [app]
@@ -46,3 +71,9 @@
            (let [req (mock/request :get (r/path-for :view-friend :id "blah"))
                  resp (-> req app)]
              (:status resp) => 404))))
+
+(u/with-app
+  (fn [app]
+    (future-fact "full happy-path flow")
+    )
+  )

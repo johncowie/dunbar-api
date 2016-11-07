@@ -8,17 +8,16 @@
             [dunbar-api.validation :as v]
             [dunbar-api.config :as config]
             [ring.util.response :refer [response content-type status]]
-            [clojure.string :as str])
+            [clojure.string :as str]
+            [dunbar-api.utils.string :as ustr])
   (:gen-class))
 
 
 (defn add-user [friend]
   (assoc friend :user "john"))
 
-(def trimmed-lowercase (comp str/trim str/lower-case))
-
 (defn gen-id [{:keys [firstName lastName] :as friend}]
-  (let [id (str (trimmed-lowercase firstName) "-" (trimmed-lowercase lastName))]
+  (let [id (-> (str firstName "-" lastName) str/lower-case ustr/remove-white-space)]
     (assoc friend :id id)))
 
 (defn create-friend [db]
@@ -42,6 +41,12 @@
             response
             (status 200))))))
 
+(defn login [db]
+  (fn [req]
+    (-> {:status "success"
+         :token "the token"}
+        response)))
+
 (defn not-found [req]
   (-> (response {:status "resource not found"})
       (status 404)))
@@ -49,7 +54,8 @@
 (defn handlers [db]
   {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
    :create-friend (create-friend db)
-   :view-friend   (view-friend db)})
+   :view-friend   (view-friend db)
+   :login         (login db)})
 
 (defn app
   "Takes a configuration map, a store object (i.e. to interact with the database),

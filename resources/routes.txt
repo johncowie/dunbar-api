@@ -1,3 +1,4 @@
 GET  /              home
 POST /friends       create-friend
 GET  /friends/:id   view-friend
+POST /login         login

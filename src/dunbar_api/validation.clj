@@ -3,7 +3,15 @@
             [detox.validators :as v]
             [detox.translate :as t]
             [detox.traversy :as tr]
-            [dunbar-api.model.friend :as friend]))
+            [detox.macros :as m]
+            [dunbar-api.model.friend :as friend]
+            [dunbar-api.model.login :as login]
+            [dunbar-api.utils.string :as ustr]
+            [clojure.string :as str]))
+
+(def success? d/success?)
+
+;; Friend validations
 
 (def name-validator (d/chain v/not-nil v/is-string v/not-blank (v/length-less-than 51)))
 
@@ -32,4 +40,38 @@
       (d/validate friend-validator)
       (t/translate friend-translations)))
 
-(def success? d/success?)
+;; login validations
+(declare user-exists trim-lower-case correct-password)
+
+(m/defpredicate user-exists [v user-exists-fn] (user-exists-fn v))
+(m/defpredicate correct-password [[u p] password-check-fn] (password-check-fn u p))
+(m/defvalidator trim-lower-case [v] (d/success-value (-> v ustr/remove-white-space str/lower-case)))
+;; FIXME need deftransformer
+
+(defn username-validator [user-exists-fn]
+  (-> (d/chain v/not-nil v/is-string v/not-blank trim-lower-case (v/length-less-than 26) (user-exists user-exists-fn))
+      (tr/at :username login/login->username)))
+
+(def password-validator
+  (-> (d/chain v/not-nil v/is-string (v/length-less-than 51))
+      (tr/at :password login/login->password)))
+
+(defn password-check-validator [password-check-fn]
+  (-> (correct-password password-check-fn)
+      (tr/at :password-check login/login->username login/login->password)))
+
+(defn login-validator [user-exists-fn password-check-fn]
+  (d/chain
+    (d/group (username-validator user-exists-fn) password-validator)
+    (password-check-validator password-check-fn)))
+
+(def login-translations {:password {:is-string "Password must be a string"
+                                    :length-less-than "Password must be less than ~~limit~~ characters"
+                                    :not-nil "Password can not be blank"}
+                         :username {:is-string "Username must be a string"
+                                    :length-less-than "Username must be less than ~~limit~~ characters"
+                                    :not-nil "Username can not be blank"
+                                    :not-blank "username can not be blank"
+                                    :trim-lower-case "** this message was returned in error **"
+                                    :user-exists "User does not exist"}
+                         :password-check {:correct-password "Username or password was incorrect"}})
