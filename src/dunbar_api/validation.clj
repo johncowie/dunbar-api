@@ -75,3 +75,8 @@
                                     :trim-lower-case "** this message was returned in error **"
                                     :user-exists "User does not exist"}
                          :password-check {:correct-password "Username or password was incorrect"}})
+
+(defn validate-login [login user-exists-fn password-check-fn]
+  (-> login
+      (d/validate (login-validator user-exists-fn password-check-fn))
+      (t/translate login-translations)))

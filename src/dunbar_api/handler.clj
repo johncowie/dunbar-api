@@ -5,6 +5,8 @@
             [scenic.routes :refer [scenic-handler]]
             [dunbar-api.routes :as r]
             [dunbar-api.db :as db]
+            [dunbar-api.clock :as clock]
+            [dunbar-api.tokens :as token]
             [dunbar-api.validation :as v]
             [dunbar-api.config :as config]
             [ring.util.response :refer [response content-type status]]
@@ -41,36 +43,53 @@
             response
             (status 200))))))
 
-(defn login [db]
+(defn user-exists-fn [config]
+  (fn [user]
+    (= user "john")))
+
+(defn password-check-fn [config]
+  (fn [user password]
+    (and (= user "john")
+         (= password "password"))))
+
+(defn login [config db clock token-generator]
   (fn [req]
-    (-> {:status "success"
-         :token "the token"}
-        response)))
+    (let [val-result (-> req :body (v/validate-login (user-exists-fn config) (password-check-fn config)))]
+      (if (v/success? val-result)
+        (let [data (-> (:value val-result))]
+          (-> {:status "success"
+               :token  (token/generate-token token-generator)}
+              response))
+        (-> (response {:status "error" :errors (:value val-result)})
+            (status 400))))))
 
 (defn not-found [req]
   (-> (response {:status "resource not found"})
       (status 404)))
 
-(defn handlers [db]
+(defn handlers [config db clock token-generator]
   {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
    :create-friend (create-friend db)
    :view-friend   (view-friend db)
-   :login         (login db)})
+   :login         (login config db clock token-generator)})
 
 (defn app
   "Takes a configuration map, a store object (i.e. to interact with the database),
      and a clock object (i.e. for timebased operations), and returns a ring request handler."
-  [db]
-  (-> (scenic-handler r/routes (handlers db) not-found)
-      wrap-json-response
-      ;(m/wrap-exceptions c/error-handler)
-      (wrap-defaults api-defaults)
-      (wrap-json-body {:keywords? true})
-      ;(m/wrap-allow-access-all)
-      ))
+  [config db clock token-generator]
+  (let [handler (handlers config db clock token-generator)]
+    (-> (scenic-handler r/routes handler not-found)
+        wrap-json-response
+        ;(m/wrap-exceptions c/error-handler)
+        (wrap-defaults api-defaults)
+        (wrap-json-body {:keywords? true})
+        ;(m/wrap-allow-access-all)
+        )))
 
 (defn -main [& args]
   (let [config (config/load-config)
-        db (db/create-db config)]
+        db (db/create-db config)
+        clock (clock/create-joda-clock)
+        token-generator (token/create-uuid-token-generator)]
     (db/migrate-db db nil)
-    (run-server (app db) {:port 8080 :host "0.0.0.0"})))
+    (run-server (app config db clock token-generator) {:port 8080 :host "0.0.0.0"})))

@@ -3,7 +3,10 @@
             [ring.mock.request :as mock]
             [dunbar-api.routes :as r]
             [cheshire.core :as json]
-            [dunbar-api.test-utils :as u]))
+            [dunbar-api.test-utils :as u]
+            [dunbar-api.clock :as clock]
+            [clj-time.core :as t]
+            [dunbar-api.tokens :as token]))
 
 (u/with-app
   (fn [app]
@@ -28,30 +31,35 @@
                      (:status resp) => 200
                      resp-json => friend))))))
 
-(u/with-app
-  (fn [app]
-    (fact "can login user and retrieve token"
-          (let [login-details {:username "john" :password "password"}
-                resp (-> (u/json-post-req (r/path-for :login) login-details) app)
-                resp-json (u/json-body resp)]
-            (:status resp) => 200
-            resp-json => (contains {:status "success"
-                                    :token  anything})      ;; TODO can swap in token generator?
-            ))
-    (future-fact "if password is incorrect, returns error response"
-          (let [login-details {:username "john" :password "doh"}
-                resp (-> (u/json-post-req (r/path-for :login) login-details) app)
-                resp-json (u/json-body resp)]
-            (:status resp) => 400
-            resp-json => (contains {:status "error"})))
-    (future-fact "if user is incorrect, returns error response"
-          (let [login-details {:username "bob" :password "password"}
-                resp (-> (u/json-post-req (r/path-for :login) login-details) app)
-                resp-json (u/json-body resp)]
-            (:status resp) => 400
-            resp-json => (contains {:status "error"})))
-    )
-  )
+(let [clock (clock/create-adjustable-clock (t/date-time 2016 1 1 0 0 0))]
+  (u/with-app
+    {:clock           clock
+     :token-generator (token/create-stub-token-generator ["t1" "t2" "t3"])}
+    (fn [app]
+      (fact "can login user and retrieve token"
+            (let [login-details {:username "john" :password "password"}
+                  resp (-> (u/json-post-req (r/path-for :login) login-details) app)
+                  resp-json (u/json-body resp)]
+              (:status resp) => 200
+              resp-json => (contains {:status "success"
+                                      :token  "t1"})
+              ))
+      (fact "if password is incorrect, returns error response"
+            (let [login-details {:username "john" :password "doh"}
+                  resp (-> (u/json-post-req (r/path-for :login) login-details) app)
+                  resp-json (u/json-body resp)]
+              (:status resp) => 400
+              resp-json => (contains {:status "error"})))
+      (fact "if user is incorrect, returns error response"
+            (let [login-details {:username "bob" :password "password"}
+                  resp (-> (u/json-post-req (r/path-for :login) login-details) app)
+                  resp-json (u/json-body resp)]
+              (:status resp) => 400
+              resp-json => (contains {:status "error"})))
+
+      )
+
+    ))
 
 (u/with-app
   (fn [app]

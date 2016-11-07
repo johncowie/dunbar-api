@@ -3,7 +3,9 @@
             [dunbar-api.handler :as h]
             [ring.mock.request :as mock]
             [cheshire.core :as json]
-            [dunbar-api.config :as config]))
+            [dunbar-api.config :as config]
+            [dunbar-api.clock :as clock]
+            [dunbar-api.tokens :as token]))
 
 (defn with-db [f]
   (let [db (db/create-db (config/load-config))]
@@ -12,13 +14,19 @@
     (f db)
     (db/stop-db db)))
 
-(defn with-app [f]
-  (let [db (db/create-db (config/load-config))
-        app (h/app db)]
-    (db/migrate-db db nil)
-    (db/delete-all db)
-    (f app)
-    (db/stop-db db)))
+(defn with-app
+  ([component-overrides f]
+   (let [config (merge (config/load-config) (:config component-overrides))
+         db (or (:db component-overrides) (db/create-db config))
+         clock (or (:clock component-overrides) (clock/create-joda-clock))
+         token-generator (or (:token-generator component-overrides) (token/create-uuid-token-generator))
+         app (h/app config db clock token-generator)]
+     (db/migrate-db db nil)
+     (db/delete-all db)
+     (f app)
+     (db/stop-db db)))
+  ([f]
+    (with-app {} f)))
 
 (defn json-post-req [path body]
   (let [json (json/generate-string body)]
