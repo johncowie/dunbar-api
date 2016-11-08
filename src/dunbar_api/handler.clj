@@ -77,19 +77,29 @@
 (defn auth-token [req]
   (get-in req [:headers "AuthToken"]))
 
-(defn wrap-auth [handler db clock]
-  (fn [req]
-    (if-let [token (auth-token req)]
-      (if-let [user (token/get-user-for-token db clock token)]
-        (handler (assoc-in req [:params :auth-user] user))
-        (-> (response {:status "forbidden"}) (status 401)))
-      (-> (response {:status "forbidden"}) (status 401)))))
+(defn wrap-auth [db clock]
+  (fn [handler]
+    (fn [req]
+      (if-let [token (auth-token req)]
+        (if-let [user (token/get-user-for-token db clock token)]
+          (handler (assoc-in req [:params :auth-user] user))
+          (-> (response {:status "forbidden"}) (status 401)))
+        (-> (response {:status "forbidden"}) (status 401))))))
+
+(defn wrap-handlers
+  ([handlers wrapper white-list]
+    (reduce #(update %1 %2 wrapper) handlers (remove (set white-list) (keys handlers))))
+  ([handlers wrapper]
+    (wrap-handlers wrapper handlers [])))
+
 
 (defn handlers [config db clock token-generator]
-  {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
-   :create-friend (-> (create-friend db) (wrap-auth db clock))
-   :view-friend   (view-friend db)
-   :login         (login config db clock token-generator)})
+  (->
+    {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
+     :create-friend (create-friend db)
+     :view-friend   (view-friend db)
+     :login         (login config db clock token-generator)}
+    (wrap-handlers (wrap-auth db clock) [:home :login])))
 
 (defn app
   "Takes a configuration map, a store object (i.e. to interact with the database),

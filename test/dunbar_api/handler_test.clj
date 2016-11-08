@@ -31,8 +31,10 @@
 (defn is-friend? [first-name last-name]
   (has-body? {:firstName first-name :lastName last-name}))
 
-(defn view-friend [app path]
-  (-> (u/json-get-req path) app))
+(defn view-friend [app token path]
+  (-> (u/json-get-req path)
+      (assoc-in [:headers "AuthToken"] token)
+      app))
 
 (defn has-status? [status]
   (fn [resp] (= (:status resp) status)))
@@ -42,7 +44,6 @@
          {:config {:username "john" :password "password"}}
          (fn [app]
            (let [token (get-token app "john" "password")]
-             (prn "TOKEN: " token)
              (fact "can not post friend without token"
                    (create-friend app nil "David" "Bowie") => (has-status? 401))
              (fact "can not post friend with invalid token"
@@ -55,7 +56,11 @@
                            resp-json => (contains {:status "created"
                                                    :url    anything}))
                      (fact "resource url returns data"
-                           (view-friend app (:url resp-json)) => (every-checker (has-status? 200) (is-friend? "David" "Bowie")))))
+                           (view-friend app token (:url resp-json)) => (every-checker (has-status? 200) (is-friend? "David" "Bowie")))
+                     (fact "resource url returns 401 if token is incorrect"
+                           (view-friend app "invalid-token" (:url resp-json)) => (has-status? 401))
+                     (fact "resource url returns 404 if friend doesn't exist"
+                           (view-friend app token (r/path-for :view-friend :id "blah")) => (has-status? 404))))
              (fact "returns 400 if friend already exists"
                    (let [resp (create-friend app token "David" "Bowie")]
                      resp => (has-status? 400)
@@ -121,13 +126,6 @@
                        (clock/adjust clock #(t/plus % (t/seconds 3)))
                        (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
                            app u/json-body) => {:status "success" :token "t2"})))))))
-
-(u/with-app
-  (fn [app]
-    (facts "returns 404 for friend that doesn't exist"
-           (let [req (mock/request :get (r/path-for :view-friend :id "blah"))
-                 resp (-> req app)]
-             (:status resp) => 404))))
 
 (u/with-app
   (fn [app]
