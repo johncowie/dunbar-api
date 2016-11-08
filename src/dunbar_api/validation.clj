@@ -20,10 +20,17 @@
 
 (def unknown-keys-validator (v/valid-keys friend/valid-keys))
 
-(def friend-validator (d/group
-                        first-name-validator
-                        last-name-validator
-                        unknown-keys-validator))
+(declare friend-not-exists)
+(m/defpredicate friend-not-exists [v friend-exists-fn]
+                (not (friend-exists-fn v)))
+
+(defn friend-validator [friend-exists-fn]
+  (d/chain
+    (d/group
+      first-name-validator
+      last-name-validator
+      unknown-keys-validator)
+    (friend-not-exists friend-exists-fn)))
 
 (def friend-translations {:first-name {:is-string        "First name must be a string"
                                        :length-less-than "First name must be less than ~~limit~~ characters"
@@ -33,11 +40,12 @@
                                        :length-less-than "Last name must be less than ~~limit~~ characters"
                                        :not-blank        "Last name must not be blank"
                                        :not-nil          "Last name cannot be nil"}
-                          :valid-keys "Data contains invalid keys"})
+                          :valid-keys "Data contains invalid keys"
+                          :friend-not-exists "Friend already exists"})
 
-(defn validate-friend [friend]
+(defn validate-friend [friend friend-exists-fn]
   (-> friend
-      (d/validate friend-validator)
+      (d/validate (friend-validator friend-exists-fn))
       (t/translate friend-translations)))
 
 ;; login validations
@@ -65,15 +73,15 @@
     (d/group (username-validator user-exists-fn) password-validator)
     (password-check-validator password-check-fn)))
 
-(def login-translations {:password {:is-string "Password must be a string"
-                                    :length-less-than "Password must be less than ~~limit~~ characters"
-                                    :not-nil "Password can not be blank"}
-                         :username {:is-string "Username must be a string"
-                                    :length-less-than "Username must be less than ~~limit~~ characters"
-                                    :not-nil "Username can not be blank"
-                                    :not-blank "username can not be blank"
-                                    :trim-lower-case "** this message was returned in error **"
-                                    :user-exists "User does not exist"}
+(def login-translations {:password       {:is-string        "Password must be a string"
+                                          :length-less-than "Password must be less than ~~limit~~ characters"
+                                          :not-nil          "Password can not be blank"}
+                         :username       {:is-string        "Username must be a string"
+                                          :length-less-than "Username must be less than ~~limit~~ characters"
+                                          :not-nil          "Username can not be blank"
+                                          :not-blank        "username can not be blank"
+                                          :trim-lower-case  "** this message was returned in error **"
+                                          :user-exists      "User does not exist"}
                          :password-check {:correct-password "Username or password was incorrect"}})
 
 (defn validate-login [login user-exists-fn password-check-fn]

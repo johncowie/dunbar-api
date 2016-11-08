@@ -13,23 +13,57 @@
     (facts "handler returns something"
            (-> (mock/request :get "/") app :body) => "hello world")))
 
-(u/with-app
-  (fn [app]
-    (facts "can post and retrieve a friend"
-           (let [friend {:firstName "David" :lastName "Bowie"}
-                 req (u/json-post-req (r/path-for :create-friend) friend)
-                 resp (-> req app)
-                 resp-json (u/json-body resp)]
-             (:status resp) => 201
-             (fact "response has url to resource"
-                   resp-json => (contains {:status "created"
-                                           :url    anything}))
-             (fact "resource url returns data"
-                   (let [req (mock/request :get (or (:url resp-json) "blah"))
-                         resp (-> req app)
+(defn get-token [app username password]
+  (-> (u/json-post-req (r/path-for :login) {:username username :password password})
+      app
+      u/json-body
+      :token))
+
+(defn create-friend [app token first-name last-name]
+  (-> (u/json-post-req (r/path-for :create-friend) {:firstName first-name :lastName last-name})
+      app))
+
+(defn has-body? [data]
+  (fn [resp]
+    (= (u/json-body resp) data)))
+
+(defn is-friend? [first-name last-name]
+  (has-body? {:firstName first-name :lastName last-name}))
+
+(defn view-friend [app path]
+  (-> (u/json-get-req path) app))
+
+(defn has-status? [status]
+  (fn [resp] (= (:status resp) status)))
+
+(facts "about creating friend resources"
+       (u/with-app
+         {:config {:username "john" :password "password"}}
+         (fn [app]
+           (let [token (get-token app "john" "password")]
+             (future-fact "can not post friend without token"
+                   (create-friend app nil "David" "Bowie") => (has-status? 401))
+             (fact "can post and retrieve a friend"
+                   (let [resp (create-friend app token "David" "Bowie")
                          resp-json (u/json-body resp)]
-                     (:status resp) => 200
-                     resp-json => friend))))))
+                     resp => (has-status? 201)
+                     (fact "response has url to resource"
+                           resp-json => (contains {:status "created"
+                                                   :url    anything}))
+                     (fact "resource url returns data"
+                           (view-friend app (:url resp-json)) => (every-checker (has-status? 200) (is-friend? "David" "Bowie")))))
+             (fact "returns 400 if friend already exists"
+                   (let [resp (create-friend app token "David" "Bowie")]
+                     resp => (has-status? 400)
+                     resp => (has-body? {:status "error"
+                                         :errors {:friend-not-exists "Friend already exists"}})))
+             (fact "returns 400 for invalid friend"
+                   (let [resp (create-friend app token "" "")]
+                     resp => (has-status? 400)
+                     resp => (has-body? {:status "error"
+                                         :errors {:first-name {:not-blank "First name must not be blank"}
+                                                  :last-name  {:not-blank "Last name must not be blank"}}})))))))
+
 
 (let [clock (clock/create-adjustable-clock (t/date-time 2016 1 1 0 0 0))
       token-gen (token/create-stub-token-generator ["t1" "t2" "t3"])]
@@ -83,18 +117,6 @@
                        (clock/adjust clock #(t/plus % (t/seconds 3)))
                        (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
                            app u/json-body) => {:status "success" :token "t2"})))))))
-
-(u/with-app
-  (fn [app]
-    (facts "returns 400 for invalid friend"
-           (let [req (u/json-post-req (r/path-for :create-friend) {:firstName "" :lastName "" :random "random"})
-                 resp (-> req app)
-                 resp-json (json/parse-string (:body resp) keyword)]
-             (:status resp) => 400
-             resp-json => {:status "error"
-                           :errors {:first-name {:not-blank "First name must not be blank"}
-                                    :last-name  {:not-blank "Last name must not be blank"}
-                                    :valid-keys "Data contains invalid keys"}}))))
 
 (u/with-app
   (fn [app]

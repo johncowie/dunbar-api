@@ -24,9 +24,14 @@
   (let [id (-> (str firstName "-" lastName) str/lower-case ustr/remove-white-space)]
     (assoc friend :id id)))
 
+(defn friend-exists-fn [db]
+  (fn [friend]
+    (let [id (gen-id friend)]
+      (db/retrieve-friend db (:id id)))))
+
 (defn create-friend [db]
   (fn [req]
-    (let [val-result (v/validate-friend (:body req))]
+    (let [val-result (v/validate-friend (:body req) (friend-exists-fn db))]
       (if (v/success? val-result)
         (let [updated (-> (:value val-result) add-user gen-id)]
           (db/create-friend db updated)

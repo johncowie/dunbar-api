@@ -46,25 +46,22 @@
   {:firstName "" :bob ""} [:valid-keys]
   )
 
-(facts "about whole friend validation"
-       (-> {:unknown ""} (d/validate v/friend-validator))
-       => {:result :error
-           :value  [{:type        [:first-name :mandatory]
-                     :value       nil
-                     :constraints {}}
-                    {:type        [:last-name :mandatory]
-                     :value       nil
-                     :constraints {}}
-                    {:type        [:valid-keys]
-                     :value       {:unknown ""}
-                     :constraints {:valid-keys [:firstName :lastName]}}]}
-
-       (-> {:firstName "Bob" :lastName "the Builder"}
-           (d/validate v/friend-validator)) => {:result :success
-                                                :value  {:firstName "Bob" :lastName "the Builder"}})
+(tabular
+  (fact "about whole friend validation"
+        (let [friend-exists-fn? (fn [friend] ?exists)
+              result (-> ?data (d/validate (v/friend-validator friend-exists-fn?)))]
+          (if (d/success? result)
+            (:value result) => ?errors
+            (->> result :value (map :type)) => ?errors)))
+  ?data ?exists ?errors
+  {:unknown ""} false [[:first-name :mandatory]
+                       [:last-name :mandatory]
+                       [:valid-keys]]
+  {:firstName "john" :lastName "doe"} true [[:friend-not-exists]]
+  {:firstName "Bob" :lastName "the Builder"} {:firstName "Bob" :lastName "the Builder"})
 
 (facts "about translating friend errors"
-       (-> v/friend-validator
+       (-> (v/friend-validator (constantly true))
            d/possible-errors
            (t/check-translations v/friend-translations)) => {:missing [] :superfluous []})
 

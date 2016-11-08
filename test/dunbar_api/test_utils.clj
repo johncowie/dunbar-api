@@ -37,6 +37,9 @@
         (mock/body json)
         (mock/content-type "application/json; charset=utf-8"))))
 
+(defn json-get-req [path]
+  (mock/request :get path))
+
 (defn json-body [resp]
   (when-let [body (:body resp)]
     (json/parse-string body keyword)))
