@@ -65,7 +65,7 @@
           val-data (:value val-result)]
       (if (v/success? val-result)
         (let [user (l/view-single val-data login/login->username)
-              token (token/get-token-for-user user db clock token-generator config)]
+              token (token/create-token-for-user user db clock token-generator config)]
           (response {:status "success" :token token}))
         (-> (response {:status "error" :errors val-data})
             (status 400))))))
@@ -74,9 +74,20 @@
   (-> (response {:status "resource not found"})
       (status 404)))
 
+(defn auth-token [req]
+  (get-in req [:headers "AuthToken"]))
+
+(defn wrap-auth [handler db clock]
+  (fn [req]
+    (if-let [token (auth-token req)]
+      (if-let [user (token/get-user-for-token db clock token)]
+        (handler (assoc-in req [:params :auth-user] user))
+        (-> (response {:status "forbidden"}) (status 401)))
+      (-> (response {:status "forbidden"}) (status 401)))))
+
 (defn handlers [config db clock token-generator]
   {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
-   :create-friend (create-friend db)
+   :create-friend (-> (create-friend db) (wrap-auth db clock))
    :view-friend   (view-friend db)
    :login         (login config db clock token-generator)})
 

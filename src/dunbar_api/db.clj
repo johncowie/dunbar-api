@@ -21,7 +21,7 @@
   (create-user-token [this user-token])
   (retrieve-user-token [this user-id])
   (delete-user-token [this user-id])
-  )
+  (retrieve-user-for-token [this token]))
 ;
 (defn hikari-pool [config]
   (let [ds (doto (HikariDataSource.)
@@ -110,6 +110,12 @@
         first
         translate-user-token)))
 
+(defn -retrieve-user-for-token [token]
+  (fn [conn]
+    (-> (sql-retrieve-user-for-token {:token token} {:connection conn})
+        first
+        translate-user-token)))
+
 (defrecord PostgresDB [config]
   component/Lifecycle
   (start [this]
@@ -134,6 +140,8 @@
     (with-pool this (-insert-user-token user-token)))
   (retrieve-user-token [this user-id]
     (with-pool this (-retrieve-user-token user-id)))
+  (retrieve-user-for-token [this token]
+    (with-pool this (-retrieve-user-for-token token)))
   (delete-user-token [this user-id]
     (with-pool this (-delete-user-token user-id))))
 

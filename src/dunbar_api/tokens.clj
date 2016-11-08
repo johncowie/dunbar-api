@@ -45,10 +45,15 @@
     (db/create-user-token db token-data)
     token))
 
-(defn get-token-for-user [username db clock token-generator config]
+(defn create-token-for-user [username db clock token-generator config]
   (if-let [retrieved-token (db/retrieve-user-token db username)]
     (if (expired? retrieved-token clock)
       (do (db/delete-user-token db username)
           (new-token username db clock token-generator config))
       (:token retrieved-token))
     (new-token username db clock token-generator config)))
+
+(defn get-user-for-token [db clock token]
+  (if-let [retrieved-token (db/retrieve-user-for-token db token)]
+    (if-not (expired? retrieved-token clock)
+      (:user retrieved-token))))

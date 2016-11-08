@@ -21,6 +21,7 @@
 
 (defn create-friend [app token first-name last-name]
   (-> (u/json-post-req (r/path-for :create-friend) {:firstName first-name :lastName last-name})
+      (assoc-in [:headers "AuthToken"] token)
       app))
 
 (defn has-body? [data]
@@ -41,8 +42,11 @@
          {:config {:username "john" :password "password"}}
          (fn [app]
            (let [token (get-token app "john" "password")]
-             (future-fact "can not post friend without token"
+             (prn "TOKEN: " token)
+             (fact "can not post friend without token"
                    (create-friend app nil "David" "Bowie") => (has-status? 401))
+             (fact "can not post friend with invalid token"
+                   (create-friend app "blah" "David" "Bowie") => (has-status? 401))
              (fact "can post and retrieve a friend"
                    (let [resp (create-friend app token "David" "Bowie")
                          resp-json (u/json-body resp)]

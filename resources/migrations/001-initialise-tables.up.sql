@@ -7,7 +7,7 @@ CREATE TABLE friends (
 );
 
 CREATE TABLE user_tokens (
-    user_id varchar(100) NOT NULL,
-    token varchar(100) NOT NULL,
+    user_id varchar(100) PRIMARY KEY,
+    token varchar(100) NOT NULL UNIQUE,
     expiry TIMESTAMP WITH TIME ZONE NOT NULL
 )
