@@ -31,6 +31,9 @@
 (defn is-friend? [first-name last-name]
   (has-body? {:firstName first-name :lastName last-name}))
 
+(defn token-success? [token]
+  (has-body? {:status "success" :token token}))
+
 (defn view-friend [app token path]
   (-> (u/json-get-req path)
       (assoc-in [:headers "AuthToken"] token)
@@ -41,6 +44,11 @@
 
 (defn login [app username password]
   (-> (u/json-post-req (r/path-for :login) {:username username :password password})
+      app))
+
+(defn logout [app token username]
+  (-> (u/json-get-req (r/path-for :logout :user-id username))
+      (assoc-in [:headers "AuthToken"] token)
       app))
 
 (facts "about creating friend resources"
@@ -95,7 +103,13 @@
                                                                    :errors {:password-check {:correct-password "Username or password was incorrect"}}})))
       (fact "if user is incorrect, returns error response"
             (login app "bob" "password") => (every-checker (has-status? 400)
-                                                           (has-body? {:status "error" :errors {:username {:user-exists "User does not exist"}}}))))))
+                                                           (has-body? {:status "error" :errors {:username {:user-exists "User does not exist"}}})))
+      (fact "once logged in user stops getting 401s"
+            (create-friend app "t1" "My" "Friend")
+            (view-friend app "t1" (r/path-for :view-friend :id "my-friend")) => (has-status? 200))
+      (fact "after user logs out, starts getting 401s again"
+            (logout app "t1" "john") => (has-status? 200)
+            (view-friend app "t1" (r/path-for :view-friend :id "my-friend")) => (has-status? 401)))))
 
 (let [token-gen (token/create-stub-token-generator ["t1" "t2"])
       clock (clock/create-adjustable-clock (t/date-time 2016 1 1))]
@@ -108,20 +122,17 @@
                 :clock           clock
                 :config          {:token-expiry 2 :username "darth" :password "luke"}}
                (fn [app]
-                 (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
-                     app u/json-body) => {:status "success" :token "t1"}))
+                 (login app "darth" "luke") => (token-success? "t1")))
              (u/with-app
                {:db              db
                 :token-generator token-gen
                 :clock           clock
                 :config          {:token-expiry 2 :username "darth" :password "luke"}}
                (fn [app]
-                 (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
-                     app u/json-body) => {:status "success" :token "t1"}
+                 (login app "darth" "luke") => (token-success? "t1")
                  (fact "after some time has elapsed, a new token is returned"
                        (clock/adjust clock #(t/plus % (t/seconds 3)))
-                       (-> (u/json-post-req (r/path-for :login) {:username "darth" :password "luke"})
-                           app u/json-body) => {:status "success" :token "t2"})))))))
+                       (login app "darth" "luke") => (token-success? "t2"))))))))
 
 (u/with-app
   (fn [app]

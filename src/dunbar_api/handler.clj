@@ -70,6 +70,12 @@
         (-> (response {:status "error" :errors val-data})
             (status 400))))))
 
+(defn logout [db]
+  (fn [req]
+    (let [user (-> req :params :user-id)]
+      (token/remove-user-token db user)
+      (response {:status "success"}))))
+
 (defn not-found [req]
   (-> (response {:status "resource not found"})
       (status 404)))
@@ -98,7 +104,8 @@
     {:home          (constantly (-> (response "hello world") (content-type "text/plain")))
      :create-friend (create-friend db)
      :view-friend   (view-friend db)
-     :login         (login config db clock token-generator)}
+     :login         (login config db clock token-generator)
+     :logout        (logout db)}
     (wrap-handlers (wrap-auth db clock) [:home :login])))
 
 (defn app

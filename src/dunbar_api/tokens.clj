@@ -57,3 +57,6 @@
   (if-let [retrieved-token (db/retrieve-user-for-token db token)]
     (if-not (expired? retrieved-token clock)
       (:user retrieved-token))))
+
+(defn remove-user-token [db username]
+  (db/delete-user-token db username))
