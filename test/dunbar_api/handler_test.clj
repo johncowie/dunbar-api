@@ -39,6 +39,10 @@
 (defn has-status? [status]
   (fn [resp] (= (:status resp) status)))
 
+(defn login [app username password]
+  (-> (u/json-post-req (r/path-for :login) {:username username :password password})
+      app))
+
 (facts "about creating friend resources"
        (u/with-app
          {:config {:username "john" :password "password"}}
@@ -82,24 +86,16 @@
      :config          {:username "john" :password "password"}}
     (fn [app]
       (fact "can login user and retrieve token"
-            (let [login-details {:username "john" :password "password"}
-                  resp (-> (u/json-post-req (r/path-for :login) login-details) app)
-                  resp-json (u/json-body resp)]
-              (:status resp) => 200
-              resp-json => (contains {:status "success"
-                                      :token  "t1"})))
+            (login app "john" "password") => (every-checker (has-status? 200)
+                                                            (has-body? {:status "success"
+                                                                        :token  "t1"})))
       (fact "if password is incorrect, returns error response"
-            (let [login-details {:username "john" :password "doh"}
-                  resp (-> (u/json-post-req (r/path-for :login) login-details) app)
-                  resp-json (u/json-body resp)]
-              (:status resp) => 400
-              resp-json => (contains {:status "error"})))
+            (login app "john" "doh") => (every-checker (has-status? 400)
+                                                       (has-body? {:status "error"
+                                                                   :errors {:password-check {:correct-password "Username or password was incorrect"}}})))
       (fact "if user is incorrect, returns error response"
-            (let [login-details {:username "bob" :password "password"}
-                  resp (-> (u/json-post-req (r/path-for :login) login-details) app)
-                  resp-json (u/json-body resp)]
-              (:status resp) => 400
-              resp-json => (contains {:status "error"}))))))
+            (login app "bob" "password") => (every-checker (has-status? 400)
+                                                           (has-body? {:status "error" :errors {:username {:user-exists "User does not exist"}}}))))))
 
 (let [token-gen (token/create-stub-token-generator ["t1" "t2"])
       clock (clock/create-adjustable-clock (t/date-time 2016 1 1))]
