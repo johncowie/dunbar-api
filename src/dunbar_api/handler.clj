@@ -72,8 +72,8 @@
 
 (defn logout [db]
   (fn [req]
-    (let [user (-> req :params :user-id)]
-      (token/remove-user-token db user)
+    (let [token (-> req (get-in [:headers "AuthToken"]))]
+      (token/remove-user-token db token)
       (response {:status "success"}))))
 
 (defn not-found [req]

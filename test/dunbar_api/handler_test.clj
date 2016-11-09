@@ -46,8 +46,8 @@
   (-> (u/json-post-req (r/path-for :login) {:username username :password password})
       app))
 
-(defn logout [app token username]
-  (-> (u/json-get-req (r/path-for :logout :user-id username))
+(defn logout [app token]
+  (-> (u/json-get-req (r/path-for :logout))
       (assoc-in [:headers "AuthToken"] token)
       app))
 
@@ -108,8 +108,10 @@
             (create-friend app "t1" "My" "Friend")
             (view-friend app "t1" (r/path-for :view-friend :id "my-friend")) => (has-status? 200))
       (fact "after user logs out, starts getting 401s again"
-            (logout app "t1" "john") => (has-status? 200)
-            (view-friend app "t1" (r/path-for :view-friend :id "my-friend")) => (has-status? 401)))))
+            (logout app "t1") => (has-status? 200)
+            (view-friend app "t1" (r/path-for :view-friend :id "my-friend")) => (has-status? 401))
+      (fact "if token doesn't exist, log out returns 401"
+            (logout app "t1") => (has-status? 401)))))
 
 (let [token-gen (token/create-stub-token-generator ["t1" "t2"])
       clock (clock/create-adjustable-clock (t/date-time 2016 1 1))]

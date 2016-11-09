@@ -59,4 +59,4 @@
       (:user retrieved-token))))
 
 (defn remove-user-token [db username]
-  (db/delete-user-token db username))
+  (db/delete-user-token-by-token db username))

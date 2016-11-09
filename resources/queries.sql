@@ -29,6 +29,11 @@
   WHERE
     user_id = :user;
 
+-- name: sql-delete-token-for-token!
+  DELETE FROM user_tokens
+  WHERE
+    token = :token;
+
 -- name: sql-retrieve-user-token
   SELECT * FROM user_tokens
   WHERE
